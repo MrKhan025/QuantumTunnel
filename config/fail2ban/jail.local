@@ -1,0 +1,21 @@
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 4
+banaction = ufw
+backend = systemd
+
+[sshd]
+enabled = true
+port = 2222
+logpath = %(sshd_log)s
+maxretry = 3
+bantime = 24h
+
+[quantumtunnel-auth]
+enabled = true
+port = 8443
+filter = quantumtunnel-auth
+logpath = /var/log/quantumtunnel/auth.log
+maxretry = 5
+bantime = 12h
