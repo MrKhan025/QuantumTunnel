@@ -2,25 +2,16 @@
 # ==============================================================================
 # scripts/termux/remote-ctl.sh
 # Manage your Ubuntu 24.04 WireGuard VPS directly from Android Termux over SSH!
-# Why: Unprivileged Android does not allow Docker Engine or kernel netfilter in
-# non-root Termux, so this controller lets Termux act as your mobile SecOps
-# workstation to deploy, add/revoke clients, stream QR codes, and pull backups.
-#
-# Usage:
-#   ./scripts/termux/remote-ctl.sh deploy
-#   ./scripts/termux/remote-ctl.sh add-client <name> [--qr]
-#   ./scripts/termux/remote-ctl.sh revoke-client <name> [reason]
-#   ./scripts/termux/remote-ctl.sh list-clients
-#   ./scripts/termux/remote-ctl.sh rotate-keys [name|--all]
-#   ./scripts/termux/remote-ctl.sh pull-client <name>
-#   ./scripts/termux/remote-ctl.sh status
 # ==============================================================================
+# shellcheck disable=SC1091
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-# shellcheck disable=SC1091
-[[ -f "${REPO_ROOT}/.env" ]] && source "${REPO_ROOT}/.env"
+
+if [[ -f "${REPO_ROOT}/.env" ]]; then
+  source "${REPO_ROOT}/.env"
+fi
 
 VPS_HOST="${WG_HOST:?Set WG_HOST in .env to your VPS IP or domain}"
 VPS_USER="${VPS_USER:-ubuntu}"
@@ -38,9 +29,8 @@ case "${ACTION}" in
   deploy)
     echo "[TERMUX -> VPS] Syncing QuantumTunnel repository to ${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}..."
     ssh_exec "sudo mkdir -p ${REMOTE_DIR} && sudo chown -R ${VPS_USER}:${VPS_USER} ${REMOTE_DIR}"
-    rsync -az --delete --exclude 'wg-data' --exclude '.git' -e "ssh -p ${VPS_PORT}" \
-      "${REPO_ROOT}/" "${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/"
-    ssh_exec "cd ${REMOTE_DIR} && chmod +x scripts/*.sh && sudo ./scripts/bootstrap-ubuntu24.sh && sudo docker compose up -d"
+    rsync -az --delete --exclude 'wg-data' --exclude '.git' -e "ssh -p ${VPS_PORT}"       "${REPO_ROOT}/" "${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/"
+    ssh_exec "cd ${REMOTE_DIR} && chmod +x scripts/*.sh scripts/termux/*.sh && sudo ./scripts/bootstrap-ubuntu24.sh && sudo docker compose up -d"
     ;;
   add-client)
     CLIENT="${1:?Specify client name}"
@@ -62,8 +52,7 @@ case "${ACTION}" in
   pull-client)
     CLIENT="${1:?Specify client name to download to Termux}"
     mkdir -p "${REPO_ROOT}/wg-data/clients/${CLIENT}"
-    scp -P "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/wg-data/clients/${CLIENT}/${CLIENT}.conf" \
-      "${REPO_ROOT}/wg-data/clients/${CLIENT}/${CLIENT}.conf"
+    scp -P "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/wg-data/clients/${CLIENT}/${CLIENT}.conf"       "${REPO_ROOT}/wg-data/clients/${CLIENT}/${CLIENT}.conf"
     "${SCRIPT_DIR}/export-android-client.sh" "${CLIENT}"
     ;;
   status)

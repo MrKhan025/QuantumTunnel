@@ -2,8 +2,7 @@
 # ==============================================================================
 # scripts/termux/termux-wg-up.sh
 # Brings up a live WireGuard interface directly inside Rooted Android Termux
-# (via Magisk / KernelSU / `tsu`). Automatically falls back to userspace
-# `boringtun` / `wireguard-go` if the Android kernel lacks CONFIG_WIREGUARD.
+# (via Magisk / KernelSU / `tsu`).
 # Usage (inside Termux): tsu -c "./scripts/termux/termux-wg-up.sh [wg0]"
 # ==============================================================================
 set -euo pipefail

@@ -23,7 +23,9 @@ ANDROID_DL_DIR="${HOME}/storage/downloads/QuantumTunnel"
 if [[ -d "${HOME}/storage/downloads" ]]; then
   mkdir -p "${ANDROID_DL_DIR}"
   cp "${CLIENT_CONF}" "${ANDROID_DL_DIR}/${CLIENT_NAME}.conf"
-  [[ -f "${CLIENT_DIR}/${CLIENT_NAME}-qr.png" ]] && cp "${CLIENT_DIR}/${CLIENT_NAME}-qr.png" "${ANDROID_DL_DIR}/${CLIENT_NAME}-qr.png"
+  if [[ -f "${CLIENT_DIR}/${CLIENT_NAME}-qr.png" ]]; then
+    cp "${CLIENT_DIR}/${CLIENT_NAME}-qr.png" "${ANDROID_DL_DIR}/${CLIENT_NAME}-qr.png"
+  fi
   echo "[SUCCESS] Exported to Android Downloads: ${ANDROID_DL_DIR}/${CLIENT_NAME}.conf"
   echo "          Open the Android WireGuard app -> Tap '+' -> 'Import from file or archive' -> Select ${CLIENT_NAME}.conf"
 else

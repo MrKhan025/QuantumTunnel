@@ -48,7 +48,7 @@ echo "[3/4] Staging QuantumTunnel files (respecting .gitignore security rules)..
 git add .
 
 if ! git diff --cached --quiet; then
-  git commit -m "feat: initial production release of QuantumTunnel enterprise multi-protocol VPN"
+  git commit -m "feat: production release of QuantumTunnel enterprise VPN with Termux & CI fixes"
 fi
 
 echo "[4/4] Pushing to ${REMOTE_URL} (branch: main)..."

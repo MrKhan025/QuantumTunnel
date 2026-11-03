@@ -2,13 +2,8 @@
 # ==============================================================================
 # scripts/termux/setup-termux.sh
 # Complete installer & configuration script for Android Termux!
-# Supports 3 Termux Operational Modes:
-#   Mode A (Unprivileged / Non-Root): Key generator, client provisioner, QR generator,
-#           shared storage exporter for the official Android WireGuard app, and remote VPS controller.
-#   Mode B (Rooted Android via `tsu` / Magisk / KernelSU): Runs a live WireGuard tunnel or gateway
-#           directly on the Android device using `wireguard-tools` + userspace `wireguard-go` or kernel WG.
-#   Mode C (Rust CLI Builder): Compiles `qtctl` natively on ARM64 Android inside Termux.
 # ==============================================================================
+# shellcheck disable=SC1091
 set -euo pipefail
 
 echo "======================================================================"
@@ -22,25 +17,7 @@ fi
 if command -v pkg >/dev/null 2>&1; then
   echo "[1/4] Updating Termux packages and installing WireGuard & crypto tools..."
   pkg update -y
-  pkg install -y \
-    wireguard-tools \
-    libqrencode \
-    openssh \
-    gnupg \
-    age \
-    jq \
-    curl \
-    git \
-    rsync \
-    coreutils \
-    gawk \
-    sed \
-    grep \
-    tsu \
-    rust \
-    clang \
-    make \
-    pkg-config
+  pkg install -y     wireguard-tools     libqrencode     openssh     gnupg     age     jq     curl     git     rsync     coreutils     gawk     sed     grep     tsu     rust     clang     make     pkg-config
 else
   echo "[INFO] 'pkg' not found; skipping Termux package installation."
 fi
@@ -57,7 +34,6 @@ if [[ ! -f "${REPO_ROOT}/.env" ]]; then
   chmod 600 "${REPO_ROOT}/.env"
 fi
 
-# shellcheck disable=SC1091
 source "${REPO_ROOT}/scripts/lib-platform.sh"
 ensure_wg_initialized "${REPO_ROOT}"
 
