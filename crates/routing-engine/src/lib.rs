@@ -19,3 +19,15 @@ pub fn compute_padded_bucket_size(payload_len: usize) -> usize {
     }
     1420
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_daita_bucket_padding() {
+        assert_eq!(compute_padded_bucket_size(64), 128);
+        assert_eq!(compute_padded_bucket_size(300), 512);
+        assert_eq!(compute_padded_bucket_size(1400), 1420);
+    }
+}
