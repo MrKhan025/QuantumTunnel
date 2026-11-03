@@ -1,0 +1,56 @@
+name: Deploy WireGuard Enterprise VPN to Ubuntu 24.04 VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-and-lint-gate:
+    name: Security Scan & ShellCheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck scripts/*.sh scripts/termux/*.sh
+      - name: Validate Docker Compose
+        run: |
+          cp .env.example .env
+          docker compose config -q
+
+  deploy-and-verify:
+    name: Atomic Deploy to VPS with Rollback
+    needs: security-and-lint-gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH Key
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_ed25519
+          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          ssh-keyscan -p "${{ secrets.VPS_SSH_PORT }}" -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+      - name: Snapshot, Deploy & Verify Health
+        id: deploy_step
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "sudo mkdir -p /opt/QuantumTunnel /opt/quantumtunnel-rollback && sudo chown -R ${VPS_USER}:${VPS_USER} /opt/QuantumTunnel"
+          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "if [ -f /opt/QuantumTunnel/docker-compose.yml ]; then sudo rsync -a --delete /opt/QuantumTunnel/ /opt/quantumtunnel-rollback/; fi"
+          rsync -az --delete --exclude 'wg-data' --exclude '.git' -e "ssh -p ${VPS_PORT}" ./ "${VPS_USER}@${VPS_HOST}:/opt/QuantumTunnel/"
+          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "cd /opt/QuantumTunnel && chmod +x scripts/*.sh && sudo ./scripts/bootstrap-ubuntu24.sh && sudo docker compose up -d"
+      - name: Automatic Rollback on Failure
+        if: failure() && steps.deploy_step.conclusion == 'failure'
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "sudo rsync -a --delete /opt/quantumtunnel-rollback/ /opt/QuantumTunnel/ && cd /opt/QuantumTunnel && sudo docker compose up -d"
