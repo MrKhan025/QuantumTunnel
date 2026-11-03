@@ -3,24 +3,28 @@
 # scripts/list-clients.sh
 # Works on both Ubuntu 24.04 and Android Termux.
 # ==============================================================================
+# shellcheck disable=SC1091
 set -euo pipefail
-IFS=$'\n\t'
+IFS=$'
+	'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib-platform.sh"
 
 ensure_wg_initialized "${REPO_ROOT}"
 WG_CONF="${REPO_ROOT}/wg-data/wg_confs/wg0.conf"
 
-printf "%-22s %-34s %-46s\n" "CLIENT NAME" "ALLOCATED IPv4 / IPv6" "PUBLIC KEY"
-printf "%-22s %-34s %-46s\n" "----------------------" "----------------------------------" "----------------------------------------------"
+printf "%-22s %-34s %-46s
+" "CLIENT NAME" "ALLOCATED IPv4 / IPv6" "PUBLIC KEY"
+printf "%-22s %-34s %-46s
+" "----------------------" "----------------------------------" "----------------------------------------------"
 
 awk '
   /^# BEGIN_PEER / { client=$3 }
   /^PublicKey = /  { pub=$3 }
-  /^AllowedIPs = / { ips=$3 " " $4; printf "%-22s %-34s %-46s\n", client, ips, pub }
+  /^AllowedIPs = / { ips=$3 " " $4; printf "%-22s %-34s %-46s
+", client, ips, pub }
 ' "${WG_CONF}"
 
 echo ""

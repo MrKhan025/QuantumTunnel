@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
 set -euo pipefail
-IFS=$'\n\t'
+IFS=$'
+	'
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib-platform.sh"
-# shellcheck disable=SC1091
-[[ -f "${REPO_ROOT}/.env" ]] && source "${REPO_ROOT}/.env"
+
+if [[ -f "${REPO_ROOT}/.env" ]]; then
+  source "${REPO_ROOT}/.env"
+fi
 
 if is_termux || ! has_root; then
   BACKUP_DIR="${BACKUP_DIR:-${REPO_ROOT}/backups}"
@@ -25,9 +28,7 @@ TIMESTAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 ARCHIVE_NAME="quantumtunnel-wg-backup-${TIMESTAMP}.tar.gz.gpg"
 ARCHIVE_PATH="${BACKUP_DIR}/${ARCHIVE_NAME}"
 
-tar -czf - -C "${REPO_ROOT}" wg-data | \
-  gpg --batch --yes --passphrase-fd 3 --symmetric --cipher-algo AES256 \
-      -o "${ARCHIVE_PATH}" 3<<<"${PASSPHRASE}"
+tar -czf - -C "${REPO_ROOT}" wg-data |   gpg --batch --yes --passphrase-fd 3 --symmetric --cipher-algo AES256       -o "${ARCHIVE_PATH}" 3<<<"${PASSPHRASE}"
 
 sha256sum "${ARCHIVE_PATH}" > "${ARCHIVE_PATH}.sha256"
 chmod 600 "${ARCHIVE_PATH}" "${ARCHIVE_PATH}.sha256"

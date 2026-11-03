@@ -4,13 +4,14 @@
 # Production bootstrap for Ubuntu 24.04 LTS (Noble Numbat).
 # Note: If run on Android Termux, automatically redirects to scripts/termux/setup-termux.sh!
 # ==============================================================================
+# shellcheck disable=SC1091
 set -euo pipefail
-IFS=$'\n\t'
+IFS=$'
+	'
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib-platform.sh"
 
 if is_termux; then
@@ -23,7 +24,9 @@ if ! has_root; then
   exit 1
 fi
 
-[[ -f "${REPO_ROOT}/.env" ]] && source "${REPO_ROOT}/.env"
+if [[ -f "${REPO_ROOT}/.env" ]]; then
+  source "${REPO_ROOT}/.env"
+fi
 
 WG_PORT="${WG_PORT:-51820}"
 SSH_PORT="${SSH_PORT:-2222}"
@@ -34,11 +37,11 @@ WG_IPV6_GATEWAY="${WG_IPV6_GATEWAY:-fd42:42:42::1}"
 WG_MTU="${WG_MTU:-1420}"
 PUBLIC_INTERFACE="${PUBLIC_INTERFACE:-$(ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1); exit}')}"
 
+echo "[INFO] Configuring QuantumTunnel Gateway on interface ${PUBLIC_INTERFACE} (IPv4: ${WG_IPV4_SUBNET}, IPv6: ${WG_IPV6_SUBNET})..."
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y --no-install-recommends \
-  wireguard-tools qrencode ufw iptables fail2ban unattended-upgrades \
-  apt-listchanges libpam-google-authenticator auditd age jq curl gnupg
+apt-get install -y --no-install-recommends   wireguard-tools qrencode ufw iptables fail2ban unattended-upgrades   apt-listchanges libpam-google-authenticator auditd age jq curl gnupg
 
 cat <<'EOF' > /etc/sysctl.d/99-quantumtunnel-wireguard-hardening.conf
 net.ipv4.ip_forward = 1

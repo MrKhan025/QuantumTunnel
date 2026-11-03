@@ -4,8 +4,10 @@
 # Works on both Ubuntu 24.04 and Android Termux.
 # Usage: ./scripts/revoke-client.sh <client_name> [reason]
 # ==============================================================================
+# shellcheck disable=SC1091
 set -euo pipefail
-IFS=$'\n\t'
+IFS=$'
+	'
 umask 077
 
 if [[ $# -lt 1 ]]; then
@@ -17,7 +19,6 @@ CLIENT_NAME="$1"
 REASON="${2:-administrative_revocation}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib-platform.sh"
 
 WG_CONF="${REPO_ROOT}/wg-data/wg_confs/wg0.conf"
@@ -51,7 +52,7 @@ if [[ -d "${CLIENT_DIR}" ]]; then
   mv "${CLIENT_DIR}" "${REVOCATION_DIR}/${CLIENT_NAME}-$(date -u +%Y%m%d%H%M%S)"
 fi
 
-printf '{"timestamp":"%s","event":"peer_revoked","client":"%s","public_key":"%s","reason":"%s"}\n' \
-  "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "${CLIENT_NAME}" "${CLIENT_PUB_KEY}" "${REASON}" >> "${AUDIT_LOG}"
+printf '{"timestamp":"%s","event":"peer_revoked","client":"%s","public_key":"%s","reason":"%s"}
+'   "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "${CLIENT_NAME}" "${CLIENT_PUB_KEY}" "${REASON}" >> "${AUDIT_LOG}"
 
 echo "[SUCCESS] Client '${CLIENT_NAME}' (${CLIENT_PUB_KEY}) revoked and keys securely wiped."

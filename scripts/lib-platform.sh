@@ -14,7 +14,6 @@ has_root() {
   [[ "${EUID:-$(id -u)}" -eq 0 ]]
 }
 
-# Portable shred/secure delete (Termux coreutils may or may not have shred installed)
 secure_delete() {
   local target="$1"
   if [[ ! -f "${target}" ]]; then
@@ -28,7 +27,6 @@ secure_delete() {
   fi
 }
 
-# Resolve Audit Log directory (Termux cannot write to /var/log without root)
 get_audit_log_path() {
   local repo_root="$1"
   if is_termux || ! has_root; then
@@ -40,7 +38,6 @@ get_audit_log_path() {
   fi
 }
 
-# Ensure Server Keys and Base wg0.conf exist (Allows running add-client.sh directly on Termux!)
 ensure_wg_initialized() {
   local repo_root="$1"
   local wg_config_dir="${repo_root}/wg-data/wg_confs"

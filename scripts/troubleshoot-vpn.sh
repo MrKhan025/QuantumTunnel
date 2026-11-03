@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib-platform.sh"
 
 echo "======================================================================"
@@ -9,9 +9,17 @@ echo " QuantumTunnel Enterprise Diagnostics — $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 echo "======================================================================"
 if is_termux; then
   echo "[Platform] Android Termux (${TERMUX_VERSION:-detected})"
-  echo "[Root Status] $(has_root && echo 'Rooted (tsu/su active)' || echo 'Unprivileged User-Space Mode')"
+  if has_root; then
+    echo "[Root Status] Rooted (tsu/su active)"
+  else
+    echo "[Root Status] Unprivileged User-Space Mode"
+  fi
   for cmd in wg qrencode ssh gpg curl; do
-    command -v "${cmd}" >/dev/null 2>&1 && echo "  [OK] ${cmd} installed" || echo "  [MISSING] ${cmd} (run ./scripts/termux/setup-termux.sh)"
+    if command -v "${cmd}" >/dev/null 2>&1; then
+      echo "  [OK] ${cmd} installed"
+    else
+      echo "  [MISSING] ${cmd} (run ./scripts/termux/setup-termux.sh)"
+    fi
   done
 else
   uname -a

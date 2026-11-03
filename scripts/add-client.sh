@@ -4,8 +4,10 @@
 # Works on BOTH Ubuntu 24.04 Server AND Android Termux!
 # Usage: ./scripts/add-client.sh <client_name> [--qr]
 # ==============================================================================
+# shellcheck disable=SC1091
 set -euo pipefail
-IFS=$'\n\t'
+IFS=$'
+	'
 umask 077
 
 if [[ $# -lt 1 ]]; then
@@ -23,10 +25,11 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib-platform.sh"
-# shellcheck disable=SC1091
-[[ -f "${REPO_ROOT}/.env" ]] && source "${REPO_ROOT}/.env"
+
+if [[ -f "${REPO_ROOT}/.env" ]]; then
+  source "${REPO_ROOT}/.env"
+fi
 
 WG_HOST="${WG_HOST:-vpn.example.com}"
 WG_PORT="${WG_PORT:-51820}"
@@ -70,9 +73,12 @@ CLIENT_PUB_KEY="$(echo "${CLIENT_PRIV_KEY}" | wg pubkey)"
 CLIENT_PSK="$(wg genpsk)"
 SERVER_PUB_KEY="$(cat "${WG_CONFIG_DIR}/server_public.key")"
 
-printf "%s\n" "${CLIENT_PRIV_KEY}" > "${CLIENT_DIR}/private.key"
-printf "%s\n" "${CLIENT_PUB_KEY}"  > "${CLIENT_DIR}/public.key"
-printf "%s\n" "${CLIENT_PSK}"      > "${CLIENT_DIR}/preshared.key"
+printf "%s
+" "${CLIENT_PRIV_KEY}" > "${CLIENT_DIR}/private.key"
+printf "%s
+" "${CLIENT_PUB_KEY}"  > "${CLIENT_DIR}/public.key"
+printf "%s
+" "${CLIENT_PSK}"      > "${CLIENT_DIR}/preshared.key"
 chmod 600 "${CLIENT_DIR}"/*.key
 
 CLIENT_CONF="${CLIENT_DIR}/${CLIENT_NAME}.conf"
@@ -105,7 +111,6 @@ AllowedIPs = ${CLIENT_IPV4}, ${CLIENT_IPV6}
 # END_PEER ${CLIENT_NAME}
 EOF
 
-# Sync live interface if running on Docker or active kernel/userspace wg0
 if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^quantumtunnel-wireguard$"; then
   docker exec quantumtunnel-wireguard bash -c "wg syncconf wg0 <(wg-quick strip /config/wg_confs/wg0.conf)"
 elif command -v wg >/dev/null 2>&1 && ip link show wg0 >/dev/null 2>&1 && has_root; then

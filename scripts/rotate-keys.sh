@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
+IFS=$'
+	'
 umask 077
 
 TARGET="${1:---all}"
