@@ -11,6 +11,7 @@ scrape_configs:
   - job_name: "wireguard-exporter"
     static_configs:
       - targets: ["wireguard:9586"]
+    # Strip peer public IP endpoint labels at ingestion to enforce strict No-Log compliance
     metric_relabel_configs:
       - regex: "endpoint"
         action: labeldrop

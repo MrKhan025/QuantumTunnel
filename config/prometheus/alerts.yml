@@ -7,4 +7,14 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "WireGuard interface exporter is unreachable"
+          summary: "QuantumTunnel WireGuard interface exporter is unreachable"
+          description: "The wg0 interface or exporter has been unreachable for over 60 seconds."
+
+      - alert: HighHostNetworkDropRate
+        expr: rate(node_network_transmit_drop_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated packet drop rate on QuantumTunnel gateway"
+          description: "Check sysctl net.core.rmem_max and DDoS rate-limiting rules."
