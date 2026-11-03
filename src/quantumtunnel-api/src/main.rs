@@ -2,7 +2,7 @@ use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};
 
 async fn health() -> Json<Value> {
-    Json(json!({ "status": "healthy", "no_log_enforced": true }))
+    Json(json!({ "service": "QuantumTunnel", "status": "healthy", "no_log_enforced": true }))
 }
 
 #[tokio::main]
