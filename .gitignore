@@ -1,0 +1,12 @@
+# QuantumTunnel Security .gitignore
+# Never commit private keys, client configs, or environment secrets to GitHub!
+.env
+wg-data/
+backups/
+target/
+node_modules/
+*.key
+*.conf
+*.png
+*.gpg
+*.sha256

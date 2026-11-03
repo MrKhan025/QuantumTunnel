@@ -1,0 +1,127 @@
+name: quantumtunnel-wireguard-enterprise
+
+services:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:1.0.20210914-r4
+    container_name: quantumtunnel-wireguard
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - SERVERURL=${WG_HOST}
+      - SERVERPORT=${WG_PORT:-51820}
+      - PEERS=0
+      - PEERDNS=${WG_DNS_PRIMARY:-1.1.1.1}
+      - INTERNAL_SUBNET=10.66.66.0
+      - ALLOWEDIPS=0.0.0.0/0, ::/0
+      - LOG_CONFS=false
+    volumes:
+      - ./wg-data:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "${WG_PORT:-51820}:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv6.conf.all.forwarding=1
+    healthcheck:
+      test: ["CMD-SHELL", "wg show wg0 >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vpn-net
+
+  prometheus-wg-exporter:
+    image: mindflavor/prometheus-wireguard-exporter:3.6.6
+    container_name: quantumtunnel-wg-exporter
+    restart: unless-stopped
+    network_mode: "service:wireguard"
+    cap_add:
+      - NET_ADMIN
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: ["-a", "true", "-i", "wg0", "-p", "9586"]
+    volumes:
+      - ./wg-data:/etc/wireguard:ro
+    depends_on:
+      wireguard:
+        condition: service_healthy
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: quantumtunnel-node-exporter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - vpn-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: quantumtunnel-prometheus
+    restart: unless-stopped
+    user: "65534:65534"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - vpn-net
+
+  grafana:
+    image: grafana/grafana-oss:11.2.0
+    container_name: quantumtunnel-grafana
+    restart: unless-stopped
+    user: "472:472"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-secops-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - vpn-net
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  vpn-net:
+    driver: bridge
