@@ -1,0 +1,13 @@
+[package]
+name = "crypto-utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+zeroize.workspace = true
+x25519-dalek.workspace = true
+pqcrypto-mlkem.workspace = true
+pqcrypto-traits.workspace = true
+hkdf.workspace = true
+sha2.workspace = true
+rand = "0.8"
