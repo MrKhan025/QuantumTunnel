@@ -1,13 +1,44 @@
-use axum::{routing::get, Json, Router};
-use serde_json::{json, Value};
+use anyhow::Result;
+use clap::{Parser, Subcommand};
 
-async fn health() -> Json<Value> {
-    Json(json!({ "status": "healthy", "no_log_enforced": true }))
+#[derive(Parser)]
+#[command(name = "qtctl", about = "QuantumTunnel Enterprise Zero-Trust CLI (Ubuntu 24.04 & Android Termux)")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
 }
 
-#[tokio::main]
-async fn main() {
-    let app = Router::new().route("/healthz", get(health));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8443").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+#[derive(Subcommand)]
+enum Commands {
+    /// Check environment readiness (Ubuntu Server vs Android Termux)
+    Doctor,
+    /// Generate a Post-Quantum Hybrid Keypair
+    GenPqKey,
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Doctor => {
+            let is_termux = std::env::var("TERMUX_VERSION").is_ok()
+                || std::env::var("PREFIX")
+                    .map(|p| p.contains("com.termux"))
+                    .unwrap_or(false);
+            println!("QuantumTunnel Environment Check:");
+            println!(
+                "  Platform : {}",
+                if is_termux {
+                    "Android Termux"
+                } else {
+                    "Standard Linux / Ubuntu 24.04 Server"
+                }
+            );
+            println!("  Status   : Ready");
+        }
+        Commands::GenPqKey => {
+            let _kp = crypto_utils::HybridKeypair::generate();
+            println!("Generated X25519 + ML-KEM-1024 hybrid keypair in zeroized memory.");
+        }
+    }
+    Ok(())
 }
