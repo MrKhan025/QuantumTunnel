@@ -1,0 +1,19 @@
+# QuantumTunnel Zero-Trust Default Daemon Configuration
+interface_name = "wg0"
+preferred_protocol = "WireGuardKernel"
+enable_fallback = true
+mtu = 1420
+persistent_keepalive_secs = 25
+enable_multihop = false
+daita_obfuscation = true
+no_log_mode = true
+
+[crypto]
+classical_curve = "X25519"
+pq_kem = "ML-KEM-1024"
+rekey_interval_secs = 120
+
+[killswitch]
+enabled = true
+allow_lan_rfc1918 = false
+fwmark = 0xca6c

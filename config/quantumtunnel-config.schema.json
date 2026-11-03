@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuantumTunnel Node Configuration Schema",
+  "type": "object",
+  "required": ["interface_name", "preferred_protocol", "mtu", "no_log_mode"],
+  "properties": {
+    "interface_name": { "type": "string", "default": "wg0" },
+    "preferred_protocol": {
+      "type": "string",
+      "enum": ["WireGuardKernel", "WireGuardUserspace", "OpenVpnTls13"]
+    },
+    "mtu": { "type": "integer", "minimum": 1280, "maximum": 1500, "default": 1420 },
+    "enable_multihop": { "type": "boolean", "default": false },
+    "daita_obfuscation": { "type": "boolean", "default": true },
+    "no_log_mode": { "type": "boolean", "const": true }
+  }
+}
