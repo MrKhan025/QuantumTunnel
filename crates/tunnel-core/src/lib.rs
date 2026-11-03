@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VpnProtocol {
     WireGuardKernel,
-    WireGuardUserspace, // Used automatically on Android Termux / unprivileged containers
+    WireGuardUserspace,
     OpenVpnTls13,
 }
 
