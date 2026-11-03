@@ -1,0 +1,32 @@
+name: QuantumTunnel CI — Rust Build, Unit Tests & Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  rust-workspace-test:
+    name: Rust Workspace Check & Unit Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository (Native Git)
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
+
+      - name: Run Cargo Check & Post-Quantum Crypto Tests
+        run: |
+          cargo check --workspace
+          cargo test --workspace

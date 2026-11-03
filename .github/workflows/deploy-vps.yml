@@ -3,7 +3,22 @@ name: Deploy WireGuard Enterprise VPN to Ubuntu 24.04 VPS
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Target VPS Environment"
+        required: false
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+# Force GitHub Actions to run JavaScript actions on Node.js 24 (eliminates Node.js 20 deprecation warnings)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 permissions:
   contents: read
@@ -14,38 +29,136 @@ jobs:
     name: Security Scan & ShellCheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - name: Run ShellCheck
+      - name: Checkout Repository (Native Git - Zero Node.js Dependency)
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck
-          shellcheck scripts/*.sh scripts/termux/*.sh
-      - name: Validate Docker Compose
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
+
+      - name: Verify All Required Repository Files Exist
+        run: |
+          set -euo pipefail
+          required_files=(
+            "Cargo.toml"
+            "docker-compose.yml"
+            ".env.example"
+            "README.md"
+            "ARCHITECTURE.md"
+            "SECURITY.md"
+            "CONTRIBUTING.md"
+            "API_SPEC.md"
+            "BACKUP_AND_RESTORE.md"
+            "TERMUX_GUIDE.md"
+            "LICENSE"
+            "config/prometheus/prometheus.yml"
+            "config/prometheus/alerts.yml"
+            "config/grafana/provisioning/datasources/datasource.yml"
+            "config/grafana/provisioning/dashboards/dashboard.yml"
+            "config/grafana/dashboards/wireguard-enterprise.json"
+            "config/fail2ban/jail.local"
+            "config/fail2ban/filter.d/quantumtunnel-auth.conf"
+            "config/haproxy/haproxy.cfg"
+            "config/quantumtunnel-config.schema.json"
+            "config/daemon.default.toml"
+          )
+          for f in "${required_files[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "[ERROR] Missing required file: $f" >&2
+              exit 1
+            fi
+          done
+          echo "[OK] All ${#required_files[@]} core repository files verified."
+
+      - name: Run ShellCheck on All Bash & Termux Scripts
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck
+          shellcheck -x scripts/*.sh scripts/termux/*.sh tests/*.sh
+          echo "[OK] All shell scripts passed ShellCheck with zero warnings or errors."
+
+      - name: Validate Docker Compose Specification
         run: |
           cp .env.example .env
           docker compose config -q
+          rm -f .env
+          echo "[OK] docker-compose.yml syntax and interpolation verified."
+
+  check-vps-secrets:
+    name: Check VPS Deployment Secrets Readiness
+    needs: security-and-lint-gate
+    runs-on: ubuntu-24.04
+    outputs:
+      secrets_configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check if VPS_HOST and VPS_SSH_PRIVATE_KEY are configured
+        id: check
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          if [[ -n "${VPS_HOST}" && -n "${VPS_SSH_PRIVATE_KEY}" ]]; then
+            echo "configured=true" >> "${GITHUB_OUTPUT}"
+            echo "[OK] VPS deployment secrets detected. Proceeding with live VPS deployment."
+          else
+            echo "configured=false" >> "${GITHUB_OUTPUT}"
+            echo "### Notice: VPS Secrets Not Yet Configured" >> "${GITHUB_STEP_SUMMARY}"
+            echo "All code quality, ShellCheck, and Docker Compose checks **passed**!" >> "${GITHUB_STEP_SUMMARY}"
+            echo "Live SSH deployment was safely skipped because \`VPS_HOST\` and \`VPS_SSH_PRIVATE_KEY\` are not yet set in **Settings -> Secrets and variables -> Actions**." >> "${GITHUB_STEP_SUMMARY}"
+          fi
 
   deploy-and-verify:
     name: Atomic Deploy to VPS with Rollback
-    needs: security-and-lint-gate
+    needs: [security-and-lint-gate, check-vps-secrets]
+    if: needs.check-vps-secrets.outputs.secrets_configured == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure SSH Key
+      - name: Checkout Repository (Native Git)
         run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
+
+      - name: Configure Ephemeral SSH Key
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          PORT="${VPS_PORT:-2222}"
           install -m 600 -D /dev/null ~/.ssh/id_ed25519
-          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          ssh-keyscan -p "${{ secrets.VPS_SSH_PORT }}" -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          printf "%s
+" "${VPS_SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
+          ssh-keyscan -p "${PORT}" -H "${VPS_HOST}" >> ~/.ssh/known_hosts
+
       - name: Snapshot, Deploy & Verify Health
         id: deploy_step
         env:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_SSH_PORT }}
+          WG_HOST: ${{ secrets.WG_HOST }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
         run: |
-          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "sudo mkdir -p /opt/QuantumTunnel /opt/quantumtunnel-rollback && sudo chown -R ${VPS_USER}:${VPS_USER} /opt/QuantumTunnel"
-          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "if [ -f /opt/QuantumTunnel/docker-compose.yml ]; then sudo rsync -a --delete /opt/QuantumTunnel/ /opt/quantumtunnel-rollback/; fi"
-          rsync -az --delete --exclude 'wg-data' --exclude '.git' -e "ssh -p ${VPS_PORT}" ./ "${VPS_USER}@${VPS_HOST}:/opt/QuantumTunnel/"
-          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "cd /opt/QuantumTunnel && chmod +x scripts/*.sh && sudo ./scripts/bootstrap-ubuntu24.sh && sudo docker compose up -d"
+          USER_NAME="${VPS_USER:-ubuntu}"
+          PORT="${VPS_PORT:-2222}"
+          HOST_ENDPOINT="${WG_HOST:-${VPS_HOST}}"
+          ssh -p "${PORT}" "${USER_NAME}@${VPS_HOST}" "sudo mkdir -p /opt/QuantumTunnel /opt/quantumtunnel-rollback && sudo chown -R ${USER_NAME}:${USER_NAME} /opt/QuantumTunnel"
+          ssh -p "${PORT}" "${USER_NAME}@${VPS_HOST}" "if [ -f /opt/QuantumTunnel/docker-compose.yml ]; then sudo rsync -a --delete /opt/QuantumTunnel/ /opt/quantumtunnel-rollback/; fi"
+          rsync -az --delete --exclude 'wg-data' --exclude '.git' --exclude '.env' -e "ssh -p ${PORT}" ./ "${USER_NAME}@${VPS_HOST}:/opt/QuantumTunnel/"
+          ssh -p "${PORT}" "${USER_NAME}@${VPS_HOST}" "cat <<EOF > /opt/QuantumTunnel/.env
+          WG_HOST=${HOST_ENDPOINT}
+          WG_PORT=51820
+          SSH_PORT=${PORT}
+          GRAFANA_ADMIN_USER=secops-admin
+          GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-ChangeMeNow123!}
+          BACKUP_ENCRYPTION_PASSPHRASE=${BACKUP_ENCRYPTION_PASSPHRASE:-ChangeMeBackupKey123!}
+          EOF
+          chmod 600 /opt/QuantumTunnel/.env"
+          ssh -p "${PORT}" "${USER_NAME}@${VPS_HOST}" "cd /opt/QuantumTunnel && chmod +x scripts/*.sh scripts/termux/*.sh && sudo ./scripts/bootstrap-ubuntu24.sh && sudo docker compose up -d --remove-orphans"
+
       - name: Automatic Rollback on Failure
         if: failure() && steps.deploy_step.conclusion == 'failure'
         env:
@@ -53,4 +166,10 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_SSH_PORT }}
         run: |
-          ssh -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" "sudo rsync -a --delete /opt/quantumtunnel-rollback/ /opt/QuantumTunnel/ && cd /opt/QuantumTunnel && sudo docker compose up -d"
+          USER_NAME="${VPS_USER:-ubuntu}"
+          PORT="${VPS_PORT:-2222}"
+          ssh -p "${PORT}" "${USER_NAME}@${VPS_HOST}" "sudo rsync -a --delete /opt/quantumtunnel-rollback/ /opt/QuantumTunnel/ && cd /opt/QuantumTunnel && sudo docker compose up -d"
+
+      - name: Shred Ephemeral SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
