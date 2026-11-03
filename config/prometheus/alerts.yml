@@ -1,1 +1,10 @@
-
+groups:
+  - name: quantumtunnel_wireguard_alerts
+    rules:
+      - alert: WireGuardInterfaceDown
+        expr: up{job="wireguard-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WireGuard interface exporter is unreachable"
