@@ -118,8 +118,7 @@ jobs:
         run: |
           PORT="${VPS_PORT:-2222}"
           install -m 600 -D /dev/null ~/.ssh/id_ed25519
-          printf "%s
-" "${VPS_SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
+          printf "%s\n" "${VPS_SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
           ssh-keyscan -p "${PORT}" -H "${VPS_HOST}" >> ~/.ssh/known_hosts
 
       - name: Snapshot, Deploy & Verify Health
