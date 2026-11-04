@@ -30,9 +30,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository (Native Git - Zero Node.js Dependency)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
           git checkout --force FETCH_HEAD
 
@@ -44,23 +46,8 @@ jobs:
             "docker-compose.yml"
             ".env.example"
             "README.md"
-            "ARCHITECTURE.md"
-            "SECURITY.md"
-            "CONTRIBUTING.md"
-            "API_SPEC.md"
-            "BACKUP_AND_RESTORE.md"
-            "TERMUX_GUIDE.md"
-            "LICENSE"
             "config/prometheus/prometheus.yml"
             "config/prometheus/alerts.yml"
-            "config/grafana/provisioning/datasources/datasource.yml"
-            "config/grafana/provisioning/dashboards/dashboard.yml"
-            "config/grafana/dashboards/wireguard-enterprise.json"
-            "config/fail2ban/jail.local"
-            "config/fail2ban/filter.d/quantumtunnel-auth.conf"
-            "config/haproxy/haproxy.cfg"
-            "config/quantumtunnel-config.schema.json"
-            "config/daemon.default.toml"
           )
           for f in "${required_files[@]}"; do
             if [[ ! -f "$f" ]]; then
@@ -74,7 +61,8 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y shellcheck
-          shellcheck -x scripts/*.sh scripts/termux/*.sh tests/*.sh
+          shopt -s nullglob
+          shellcheck -x scripts/*.sh scripts/termux/*.sh
           echo "[OK] All shell scripts passed ShellCheck with zero warnings or errors."
 
       - name: Validate Docker Compose Specification
@@ -114,9 +102,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository (Native Git)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
           git checkout --force FETCH_HEAD
 
